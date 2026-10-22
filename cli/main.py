@@ -160,6 +160,18 @@ def backtest(
         console.print(f"[yellow]unsettled:[/yellow] {ticker}: {reason}")
 
 
+@app.command()
+def web(
+    host: str = typer.Option("127.0.0.1", "--host", help="Address to listen on; keep it local unless you trust the network"),
+    port: int = typer.Option(8501, "--port", help="Port to listen on (the next free one is used if taken)"),
+    browser: bool = typer.Option(True, "--browser/--no-browser", help="Open the page in your browser"),
+):
+    """Open the TradingAgents web UI: the same analysis, backtests and reports in a browser."""
+    from webui.server import serve
+
+    serve(host=host, port=port, open_browser=browser)
+
+
 # The plans `login` and `logout` take: the providers signed in to, not keyed.
 Plan = StrEnum("Plan", {name: name for name in SIGNED_IN_PROVIDERS})
 

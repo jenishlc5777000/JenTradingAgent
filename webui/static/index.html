@@ -1,0 +1,210 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>TradingAgents</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%2310b981'/%3E%3Cpath d='M6 22l7-8 5 5 8-10' stroke='white' stroke-width='3' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E">
+<link rel="stylesheet" href="/style.css">
+</head>
+<body>
+<div class="app">
+  <aside class="side">
+    <div class="brand">
+      <span class="logo"><svg viewBox="0 0 32 32" width="22" height="22"><path d="M6 22l7-8 5 5 8-10" stroke="currentColor" stroke-width="3" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+      <div><b>TradingAgents</b><small id="version"></small></div>
+    </div>
+    <nav id="nav">
+      <button data-view="run" class="active"><i>▶</i> New analysis</button>
+      <button data-view="live"><i>◉</i> Live run <span id="live-dot" class="dot hidden"></span></button>
+      <button data-view="history"><i>▤</i> Reports</button>
+      <button data-view="backtest"><i>⟲</i> Backtest</button>
+      <button data-view="memory"><i>✎</i> Decision log</button>
+      <button data-view="settings"><i>⚙</i> Settings</button>
+    </nav>
+    <div class="side-foot">
+      <button id="theme" class="ghost" title="Toggle light / dark">◐ Theme</button>
+      <p class="muted small">Research tool, not financial advice. Runs spend your model API credits.</p>
+    </div>
+  </aside>
+
+  <main>
+    <div id="toast" class="toast hidden"></div>
+
+    <!-- NEW ANALYSIS -->
+    <section id="view-run" class="view">
+      <header class="page-head"><h1>New analysis</h1><p class="muted">A team of LLM agents researches, debates and decides. Pick what to analyze and how deep to go.</p></header>
+      <div class="grid two">
+        <div class="card">
+          <h2>What to analyze</h2>
+          <div class="row">
+            <label class="grow">Ticker
+              <input id="ticker" placeholder="NVDA, 0700.HK, BTC-USD, GC=F" autocomplete="off" spellcheck="false">
+              <span id="ticker-hint" class="hint"></span>
+            </label>
+            <label>Analysis date
+              <input id="date" type="date">
+            </label>
+          </div>
+          <div class="label">Analysts</div>
+          <div id="analysts" class="chips"></div>
+          <div class="label">Research depth</div>
+          <div id="depths" class="segmented"></div>
+          <div class="row">
+            <label class="grow">Report language
+              <select id="language"></select>
+            </label>
+            <label class="check mt"><input type="checkbox" id="checkpoint"> Resume if interrupted <span class="hint">(checkpoints)</span></label>
+          </div>
+        </div>
+
+        <div class="card">
+          <h2>Models</h2>
+          <label>Provider <select id="provider"></select></label>
+          <div id="provider-status" class="status-line"></div>
+          <label id="url-row" class="hidden">Endpoint URL <input id="backend_url" placeholder="http://localhost:8000/v1"></label>
+          <div class="row">
+            <label class="grow">Quick-thinking model <span class="hint">analysts, debaters, trader</span>
+              <input id="quick_model" list="quick-list" autocomplete="off" spellcheck="false"><datalist id="quick-list"></datalist>
+            </label>
+            <label class="grow">Deep-thinking model <span class="hint">managers, final decision</span>
+              <input id="deep_model" list="deep-list" autocomplete="off" spellcheck="false"><datalist id="deep-list"></datalist>
+            </label>
+          </div>
+          <div id="model-pick" class="chips small-chips"></div>
+          <label id="thinking-row" class="hidden"><span id="thinking-label"></span> <select id="thinking"></select></label>
+        </div>
+      </div>
+
+      <details class="card" id="portfolio-card">
+        <summary><h2 class="inline">Your portfolio <span class="muted">optional</span></h2></summary>
+        <p class="muted small">Lets the trader, risk team and portfolio manager size against what you actually hold. Leave empty to analyze without account context.</p>
+        <div class="row">
+          <label>Cash <input id="pf-cash" type="number" step="any" placeholder="25000"></label>
+          <label>Currency <input id="pf-currency" placeholder="USD" maxlength="8"></label>
+        </div>
+        <table class="plain" id="pf-table"><thead><tr><th>Ticker</th><th>Quantity</th><th>Avg price</th><th></th></tr></thead><tbody></tbody></table>
+        <button class="ghost" id="pf-add" type="button">+ Add position</button>
+      </details>
+
+      <div class="actions">
+        <button class="primary big" id="start">Run analysis</button>
+        <span id="start-msg" class="msg"></span>
+      </div>
+    </section>
+
+    <!-- LIVE -->
+    <section id="view-live" class="view hidden">
+      <div id="live-empty" class="empty"><h2>No run yet</h2><p class="muted">Start an analysis and watch the agents work here.</p><button class="primary" data-goto="run">New analysis</button></div>
+      <div id="live-body" class="hidden">
+        <header class="page-head live-head">
+          <div><h1 id="live-title">—</h1><p class="muted" id="live-sub"></p></div>
+          <div class="head-actions">
+            <span id="live-badge" class="badge">running</span>
+            <button class="danger" id="cancel">Stop</button>
+          </div>
+        </header>
+        <div class="stats" id="stats">
+          <div><b id="st-time">00:00</b><span>elapsed</span></div>
+          <div><b id="st-agents">0/0</b><span>agents</span></div>
+          <div><b id="st-llm">0</b><span>LLM calls</span></div>
+          <div><b id="st-tools">0</b><span>tool calls</span></div>
+          <div><b id="st-tok">—</b><span>tokens in / out</span></div>
+        </div>
+        <div class="progress"><div id="progress-bar"></div></div>
+        <div id="error-box" class="alert hidden"></div>
+        <div id="result-banner" class="hidden"></div>
+
+        <div class="live-grid">
+          <div class="card pipeline">
+            <h2>Agent team</h2>
+            <div id="pipeline"></div>
+          </div>
+          <div class="card reports-card">
+            <div class="tabs" id="report-tabs"></div>
+            <div id="report-view" class="md"><p class="muted">Reports appear here as each agent files them.</p></div>
+          </div>
+        </div>
+        <div class="card feed-card">
+          <div class="feed-head"><h2>Activity</h2>
+            <label class="check"><input type="checkbox" id="feed-tools" checked> tool calls</label>
+            <label class="check"><input type="checkbox" id="feed-msgs" checked> messages</label>
+            <label class="check"><input type="checkbox" id="feed-follow" checked> follow</label>
+          </div>
+          <div id="feed" class="feed"></div>
+        </div>
+        <div id="final-wrap" class="hidden">
+          <h2 class="section-title">Complete report</h2>
+          <div id="final"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- HISTORY -->
+    <section id="view-history" class="view hidden">
+      <header class="page-head"><h1>Reports</h1><p class="muted">Every run saved on this machine, including ones from the terminal.</p></header>
+      <div class="toolbar"><input id="hist-filter" placeholder="Filter by ticker…"><select id="hist-rating"><option value="">Any rating</option></select><button class="ghost" id="hist-refresh">Refresh</button></div>
+      <div id="hist-list" class="list"></div>
+      <div id="hist-detail" class="hidden"></div>
+    </section>
+
+    <!-- BACKTEST -->
+    <section id="view-backtest" class="view hidden">
+      <header class="page-head"><h1>Backtest</h1><p class="muted">Run the agents over a grid of tickers and dates, then score each rating against what the market did afterwards.</p></header>
+      <div class="card">
+        <div class="row">
+          <label class="grow">Tickers <input id="bt-tickers" placeholder="NVDA, AAPL, MSFT"></label>
+          <label>Asset type <select id="bt-asset"><option value="stock">Stock</option><option value="crypto">Crypto</option></select></label>
+        </div>
+        <div class="row">
+          <label>First date <input id="bt-start" type="date"></label>
+          <label>Last date <input id="bt-end" type="date"></label>
+          <label>Every (days) <input id="bt-every" type="number" min="1" value="7"></label>
+          <label class="grow">Resume sweep ID <span class="hint">optional</span><input id="bt-runid" placeholder="20260101_120000"></label>
+        </div>
+        <p class="muted small" id="bt-count"></p>
+        <p class="muted small">Uses the provider, models and depth chosen on the New analysis page. Each cell is a full analysis, so large grids cost real money.</p>
+        <div class="actions"><button class="primary" id="bt-start-btn">Run backtest</button><span id="bt-msg" class="msg"></span></div>
+      </div>
+      <div id="bt-live" class="card hidden">
+        <div class="feed-head"><h2 id="bt-title">Sweep</h2><span id="bt-badge" class="badge">running</span><button class="danger" id="bt-cancel">Stop</button></div>
+        <div class="progress"><div id="bt-bar"></div></div>
+        <p class="muted" id="bt-label"></p>
+        <div id="bt-log" class="feed short"></div>
+        <div id="bt-result"></div>
+      </div>
+      <h2 class="section-title">Past sweeps</h2>
+      <div id="bt-past" class="list"></div>
+    </section>
+
+    <!-- MEMORY -->
+    <section id="view-memory" class="view hidden">
+      <header class="page-head"><h1>Decision log</h1><p class="muted">What the agents decided before, and the lessons they drew once the outcome was known. Later runs on the same ticker read these.</p></header>
+      <div id="mem-summary" class="stats"></div>
+      <div id="mem-list" class="list"></div>
+    </section>
+
+    <!-- SETTINGS -->
+    <section id="view-settings" class="view hidden">
+      <header class="page-head"><h1>Settings</h1></header>
+      <div class="card">
+        <h2>API keys</h2>
+        <p class="muted small">Saved to the <code>.env</code> file in the folder you launched from (owner-only) and used right away. Keys are never sent back to this page.</p>
+        <div id="keys" class="keys"></div>
+      </div>
+      <div class="card">
+        <h2>ChatGPT plan</h2>
+        <p id="chatgpt-state" class="muted"></p>
+        <p class="muted small">Sign-in opens a browser flow and runs in a terminal: <code>tradingagents login chatgpt</code></p>
+      </div>
+      <div class="card">
+        <h2>Storage</h2>
+        <dl class="kv" id="paths"></dl>
+        <div class="actions"><button class="ghost" id="clear-cp">Clear saved checkpoints</button><span id="cp-msg" class="msg"></span></div>
+      </div>
+    </section>
+  </main>
+</div>
+<script src="/app.js"></script>
+</body>
+</html>
